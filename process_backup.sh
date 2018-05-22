@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#ignore certain non-catascrophic errors and proceed with the script
+#ignore certain non-catastrophic errors and proceed with the script
 if [ "$1" = "IGNORE-ERRORS" ] || [ "$2" = "IGNORE-ERRORS" ]
 then
 	IGNOREERROR=1
@@ -10,7 +10,7 @@ fi
 
 
 #turn emailing on and off.  Neccessary if you are manually running the script
-if [ "$1" = "NO-EMAIL" ] || [ "$2" = "NO-EMAIL" ]
+if [ "$1" = "NOEMAIL" ] || [ "$2" = "NOEMAIL" ]
 then
         EMAILSEND=0
 else 
@@ -33,13 +33,13 @@ rm -r ${LOGLOCATION}process.log
 
 rm -r ${LOGLOCATION}sync_error.log
 
-rm -r ${LOGLOCATION}reporting_error.log
+rm -r ${LOGLOCATION}brunnhilde.log
 
 touch ${LOGLOCATION}process.log || { echo "could not create process logfile" >&2; exit 1; }
 
 touch ${LOGLOCATION}sync_error.log || { echo "could not create sync error logfile" >&2; exit 1; }
 
-touch ${LOGLOCATION}reporting_error.log || { echo "could not create reporting error logfile" >&2; exit 1; }
+touch ${LOGLOCATION}brunnhilde.log || { echo "could not create brunnhilde logfile" >&2; exit 1; }
 
 rm -r $COPYLOCATION
 if [ $EMAILSEND -ne 0 ]
@@ -59,7 +59,7 @@ alpha_array=("a")
 
 for i in "${alpha_array[@]}"
 do
-	mkdir ${COPYLOCATION}-$i || { echo "could not create sw-$i directory for sync" | tee process.log; exit 1; }
+	mkdir ${COPYLOCATION}sw-$i || { echo "could not create sw-$i directory for sync" | tee process.log; exit 1; }
 	aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee sync_error.log 
 
 done
@@ -98,33 +98,8 @@ fi
 echo "Starting virus and format report generation" | tee process.log
 
 for i in "${alpha_array[@]}"
-
-	bunnhilde.py -l ${COPYLOCATION}sw-$i ${COPYLOCATION}sw-${i}/sw-${i}-rpt-${DATE} 2>&1 | tee report_error.log
+do
+	
+	brunnhilde.py -l ${COPYLOCATION}sw-$i ${COPYLOCATION}sw-${i}/ sw-${i}-rpt-${DATE} 2>&1 | tee brunnhilde.log
 
 done	
-
-ERRORS=0
-
-while read -r LINE
-do
-        (( ERRORS++ ))
-done < report_error.log
-
-if [ $ERRORS -gt 0 ]
-then
-        if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Brunnhilde has been run, but there were $ERRORS errors." | mail  -s "Bunnhilde Errors" $EMAIL -A report_error.log || { echo "cannot send email" | tee process.log; exit 1; }
-        fi
-        if [ $IGNOREERROR -eq 0 ]
-        then
-                echo "$ERRORS running Brunnhilde, terminating preservation process" | tee process.log
-                exit 1
-        fi
-else
-        if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Sync of Scholarworks S3 files have completed-no errors." | mail  -s "Scholarworks Sync Complete" $EMAIL || { echo "cannot send email" | tee process.log; exit 1; }
-        fi
-        echo "Sync complete-no errors" | tee process.log
-
