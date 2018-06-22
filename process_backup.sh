@@ -45,7 +45,7 @@ touch ${LOGLOCATION}brunnhilde.log || { echo "could not create brunnhilde logfil
 
 touch ${LOGLOCATION}bagit.log || { echo "could not create bagit logfile" >&2; exit 1; }
 
-rm -r $COPYLOCATION
+#rm -r $COPYLOCATION
 if [ $EMAILSEND -ne 0 ]
 then
 	echo "Beginning processing of Scholarworks files." | mail  -s "Scholarworks curation process beginning" $EMAIL || { echo "Cannot send email: check email logs" | tee process.log; exit 1; }
@@ -53,7 +53,7 @@ fi
 
 echo "Starting Sync Process" | tee -a process.log
 
-mkdir $COPYLOCATION || { echo "could not create directory for sync" | tee -a process.log; exit 1; }
+#mkdir $COPYLOCATION || { echo "could not create directory for sync" | tee -a process.log; exit 1; }
 
 #running with a limited number of folders for testing-include the rest of the alphabet for production
 alpha_array=("a")
@@ -63,7 +63,7 @@ alpha_array=("a")
 
 for i in "${alpha_array[@]}"
 do
-	mkdir ${COPYLOCATION}sw-$i || { echo "could not create sw-$i directory for sync" | tee -a process.log; exit 1; }
+	#mkdir ${COPYLOCATION}sw-$i || { echo "could not create sw-$i directory for sync" | tee -a process.log; exit 1; }
 	aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log 
 
 done
@@ -98,7 +98,7 @@ else
 fi
 
 #If we get to this point with no errors, or we are ignoring errors, start virus and format reporting
-: '
+
 echo "Starting virus and format report generation" | tee -a process.log
 
 for i in "${alpha_array[@]}"
@@ -114,7 +114,6 @@ if [ $EMAILSEND -ne 0 ]
 fi
 
 echo "Virus and format report generation complete" | tee -a process.log
-'
 
 echo "starting bagit" | tee -a process.log
 
@@ -129,7 +128,7 @@ do
         bagit.py ${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
 	echo "Verifying directory sw-$i" | tee -a process.log
 	echo "Verifying directory sw-$i" >> bagit.log
-	bagit.py --validate /home/${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
+	bagit.py --validate /home${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
 	LOG_STRING=$(tail -1 bagit.log)
 	GREP_ERROR=$(grep -c ERROR <<< "$LOG_STRING")
 	if [ $GREP_ERROR -gt 0 ]
@@ -147,3 +146,4 @@ if [ $EMAILSEND -ne 0 ]
                 echo "Bagit process complete, $ERRORS errors, error text: $BAGIT_ERRORS" | mail  -s "Scholarworks Bagit Report" $EMAIL -A bagit.log || { echo "cannot send email" | tee -a process.log; exit 1; }
 		
 fi
+
