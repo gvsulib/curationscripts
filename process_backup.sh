@@ -23,12 +23,14 @@ EMAIL="felkerk@gvsu.edu"
 
 AWSURL="scholarworksbackup/archive/scholarworks.gvsu.edu"
 
-COPYLOCATION="./scholarworks/"
+COPYLOCATION="/home/ubuntu/scholarworks/"
 
 LOGLOCATION="./"
 
 DATE=`date +%Y-%m-%d`
 
+
+#remove all previous logfiles
 rm -r ${LOGLOCATION}process.log
 
 rm -r ${LOGLOCATION}sync_error.log
@@ -37,6 +39,8 @@ rm -r ${LOGLOCATION}brunnhilde.log
 
 rm -r ${LOGLOCATION}bagit.log
 
+
+#create logfiles we'll use to track data about the process
 touch ${LOGLOCATION}process.log || { echo "could not create process logfile" >&2; exit 1; }
 
 touch ${LOGLOCATION}sync_error.log || { echo "could not create sync error logfile" >&2; exit 1; }
@@ -45,7 +49,18 @@ touch ${LOGLOCATION}brunnhilde.log || { echo "could not create brunnhilde logfil
 
 touch ${LOGLOCATION}bagit.log || { echo "could not create bagit logfile" >&2; exit 1; }
 
-#rm -r $COPYLOCATION
+#check if the main directory exists.  If it does not, create it.
+
+echo "Checking for working directory" | tee -a process.log
+if [ ! -d "$COPYLOCATION" ]
+	
+	then
+	echo "Directory not found, attempting to create" | tee -a process.log
+	mkdir ${COPYLOCATION} || { echo "Work directory ${COPYLOCATION} absent and could not be created" >&2 | tee -a process.log; exit 1; }
+	
+fi
+
+#log (and also email, if applicable) that we are starting the process
 if [ $EMAILSEND -ne 0 ]
 then
 	echo "Beginning processing of Scholarworks files." | mail  -s "Scholarworks curation process beginning" $EMAIL || { echo "Cannot send email: check email logs" | tee process.log; exit 1; }
@@ -53,22 +68,37 @@ fi
 
 echo "Starting Sync Process" | tee -a process.log
 
-#mkdir $COPYLOCATION || { echo "could not create directory for sync" | tee -a process.log; exit 1; }
-
 #running with a limited number of folders for testing-include the rest of the alphabet for production
 alpha_array=("a")
 
 #alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
 
-
+#start syncing files from the S3 server
 for i in "${alpha_array[@]}"
 do
-	#mkdir ${COPYLOCATION}sw-$i || { echo "could not create sw-$i directory for sync" | tee -a process.log; exit 1; }
-	aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log 
+	#do the subdirectories exist?  If not, create them
+	DIRECTORY=$COPYLOCATION"sw-"$i
+	if [ ! -d "$DIRECTORY" ] 
+	then
+		mkdir ${COPYLOCATION}sw-${i} || { echo "could not create sw-$i directory for sync" | tee -a process.log; exit 1; }
+	fi
+
+	#does the data directory exist?  If so, sync to it.  If not, sync to the base directory (which should be empty, so it will copy all new files)
+	DIRECTORY="$DIRECTORY/data"
+	if [ ! -d "$DIRECTORY" ]
+	then
+		echo "syncing to main directory"
+		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log
+	else
+		echo "Synching to data directory"
+		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i/data --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log 
+		
+	fi
+
 
 done
 
-
+#check for logged errors in the previous process, and notify folks if there are any and if the user has chosen to be emailed
 ERRORS=0
 
 while read -r LINE
@@ -103,8 +133,16 @@ echo "Starting virus and format report generation" | tee -a process.log
 
 for i in "${alpha_array[@]}"
 do
-	echo "Running Brunnhilde on directory sw-$i" | tee -a process.log
-	brunnhilde.py -l ${COPYLOCATION}sw-$i ${COPYLOCATION}sw-${i}/ sw-${i}-rpt-${DATE} 2>&1 | tee -a brunnhilde.log
+	DIRECTORY=$COPYLOCATION"sw-"$i"/data"
+	#if the data directory exists, run checks against the stuff in there.  Otherwise, run it against the base directory
+	if [ ! -d "$DIRECTORY" ] 
+	then
+		DIRECTORY=$COPYLOCATION"sw-"$i
+	fi
+	
+	#rm -r ${DIRECTORY}/sw-${i}-rpt-* || { echo "cannot remove old virus and format reports" | tee -a process.log; exit 1; }
+	echo "Running Brunnhilde on directory $DIRECTORY" | tee -a process.log
+	brunnhilde.py -l ${DIRECTORY} ${DIRECTORY}/ sw-${i}-rpt-${DATE} 2>&1 | tee -a brunnhilde.log
 
 done
 
@@ -123,12 +161,21 @@ BAGIT_ERRORS=""
 
 for i in "${alpha_array[@]}"
 do
-	echo "Running bagit on directory sw-$i" | tee -a process.log
-	echo "Running bagit on directory sw-$i" >> bagit.log
-        bagit.py ${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
+	DIRECTORY=$COPYLOCATION"sw-"$i"/data"
+	if [ ! -d "$DIRECTORY" ]
+	then	
+		DIRECTORY=$COPYLOCATION"sw-"$i
+		echo "Running bagit on directory $DIRECTORY" | tee -a process.log
+		echo "Running bagit on directory $DIRECTORY" >> bagit.log
+        	bagit.py ${DIRECTORY} 2>&1 | tee -a bagit.log
+	else 	
+		echo "Attempting to update bag manifest for bag sw-$i" | tee -a process.log
+		echo "Attempting to update bag manifest for bag sw-$i" >> bagit.log
+		python ./regen_bagit_manifest.py ${COPYLOCATION}sw-$i >> bagit.log
+	fi
 	echo "Verifying directory sw-$i" | tee -a process.log
 	echo "Verifying directory sw-$i" >> bagit.log
-	bagit.py --validate /home${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
+	bagit.py --validate ${COPYLOCATION}sw-$i 2>&1 | tee -a bagit.log
 	LOG_STRING=$(tail -1 bagit.log)
 	GREP_ERROR=$(grep -c ERROR <<< "$LOG_STRING")
 	if [ $GREP_ERROR -gt 0 ]
