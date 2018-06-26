@@ -1,13 +1,5 @@
 #!/bin/bash
 
-#ignore certain non-catastrophic errors and proceed with the script
-if [ "$1" = "IGNORE-ERRORS" ] || [ "$2" = "IGNORE-ERRORS" ]
-then
-	IGNOREERROR=1
-else 
-	IGNOREERROR=0
-fi
-
 
 #turn emailing on and off.  Neccessary if you are manually running the script
 if [ "$1" = "NOEMAIL" ] || [ "$2" = "NOEMAIL" ]
@@ -51,22 +43,22 @@ touch ${LOGLOCATION}bagit.log || { echo "could not create bagit logfile" >&2; ex
 
 #check if the main directory exists.  If it does not, create it.
 
-echo "Checking for working directory" | tee -a process.log
+echo "Checking for working directory" | tee -a ${LOGLOCATION}process.log
 if [ ! -d "$COPYLOCATION" ]
 	
 	then
 	echo "Directory not found, attempting to create" | tee -a process.log
-	mkdir ${COPYLOCATION} || { echo "Work directory ${COPYLOCATION} absent and could not be created" >&2 | tee -a process.log; exit 1; }
+	mkdir ${COPYLOCATION} || { echo "Work directory ${COPYLOCATION} absent and could not be created" >&2 | tee -a ${LOGLOCATION}process.log; exit 1; }
 	
 fi
 
 #log (and also email, if applicable) that we are starting the process
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Beginning processing of Scholarworks files." | mail  -s "Scholarworks curation process beginning" $EMAIL || { echo "Cannot send email: check email logs" | tee process.log; exit 1; }
+	echo "Beginning processing of Scholarworks files." | mail  -s "Scholarworks curation process beginning" $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
-echo "Starting Sync Process" | tee -a process.log
+echo "Starting Sync Process" | tee -a ${LOGLOCATION}process.log
 
 #running with a limited number of folders for testing-include the rest of the alphabet for production
 alpha_array=("a")
@@ -80,7 +72,7 @@ do
 	DIRECTORY=$COPYLOCATION"sw-"$i
 	if [ ! -d "$DIRECTORY" ] 
 	then
-		mkdir ${COPYLOCATION}sw-${i} || { echo "could not create sw-$i directory for sync" | tee -a process.log; exit 1; }
+		mkdir ${COPYLOCATION}sw-${i} || { echo "could not create sw-$i directory for sync" | tee -a ${LOGLOCATION}process.log; exit 1; }
 	fi
 
 	#does the data directory exist?  If so, sync to it.  If not, sync to the base directory (which should be empty, so it will copy all new files)
@@ -88,10 +80,10 @@ do
 	if [ ! -d "$DIRECTORY" ]
 	then
 		echo "syncing to main directory"
-		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log
+		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log
 	else
 		echo "Synching to data directory"
-		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i/data --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a sync_error.log 
+		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i/data --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log 
 		
 	fi
 
@@ -104,7 +96,7 @@ ERRORS=0
 while read -r LINE
 do 
 	(( ERRORS++ ))
-done < sync_error.log
+done < ${LOGLOCATION}sync_error.log
 
 
 
@@ -112,24 +104,19 @@ if [ $ERRORS -gt 0 ]
 then
 	if [ $EMAILSEND -ne 0 ]
 	then
-		echo "Sync of Scholarworks S3 files have completed, but there were $ERRORS errors." | mail  -s "Sync Errors" $EMAIL -A sync_error.log || { echo "cannot send email" | tee -a process.log; exit 1; }
-	fi
-	if [ $IGNOREERROR -eq 0 ]
-	then	
-		echo "$ERRORS in sync, terminating preservation process" | tee process.log
-		exit 1
+		echo "Sync of Scholarworks S3 files have completed, but there were $ERRORS errors." | mail  -s "Sync Errors" $EMAIL -A ${LOGLOCATION}sync_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 	fi
 else
 	if [ $EMAILSEND -ne 0 ]
 	then
-		echo "Sync of Scholarworks S3 files have completed-no errors." | mail  -s "Scholarworks Sync Complete" $EMAIL || { echo "cannot send email" | tee -a process.log; exit 1; }
+		echo "Sync of Scholarworks S3 files have completed-no errors." | mail  -s "Scholarworks Sync Complete" $EMAIL || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 	fi
-	echo "Sync complete-no errors" | tee -a process.log
+	echo "Sync complete-no errors" | tee -a ${LOGLOCATION}process.log
 fi
 
 #If we get to this point with no errors, or we are ignoring errors, start virus and format reporting
 
-echo "Starting virus and format report generation" | tee -a process.log
+echo "Starting virus and format report generation" | tee -a ${LOGLOCATION}process.log
 
 for i in "${alpha_array[@]}"
 do
@@ -141,17 +128,29 @@ do
 	fi
 	
 	#rm -r ${DIRECTORY}/sw-${i}-rpt-* || { echo "cannot remove old virus and format reports" | tee -a process.log; exit 1; }
-	echo "Running Brunnhilde on directory $DIRECTORY" | tee -a process.log
-	brunnhilde.py -l ${DIRECTORY} ${DIRECTORY}/ sw-${i}-rpt-${DATE} 2>&1 | tee -a brunnhilde.log
+	echo "Running Brunnhilde on directory $DIRECTORY" | tee -a ${LOGLOCATION}process.log
+	brunnhilde.py -l ${DIRECTORY} ${DIRECTORY}/ sw-${i}-rpt-${DATE} 2>&1 | tee -a ${LOGLOCATION}brunnhilde.log
 
 done
 
-if [ $EMAILSEND -ne 0 ]
+VIRUSERRORS=$(grep -i -c "No infections found" ${LOGLOCATION}brunnhilde.log) 
+
+if [ $VIRUSERRORS -lt 1 ]
+then
+	if [ $EMAILSEND -ne 0 ]
+        then
+                echo "Brunnhilde Scan complete, viruses found, check the log for more information." | mail  -s "Brunnhilde Errors" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+        fi
+	echo "Virus and format report generation complete, viruses found" | tee -a process.log
+else 
+
+	if [ $EMAILSEND -ne 0 ]
         then
                 echo "Brunnhilde reports complete." | mail  -s "Brunnhilde Report" $EMAIL -A brunnhilde.log || { echo "cannot send email" | tee -a process.log; exit 1; }	
+	fi
+	echo "Virus and format report generation complete" | tee -a process.log
 fi
 
-echo "Virus and format report generation complete" | tee -a process.log
 
 echo "starting bagit" | tee -a process.log
 
