@@ -1,8 +1,9 @@
 #!/bin/bash
 
+#usage: sudo -H ./process_backup.sh (NOEMAIL)
 
 #turn emailing on and off.  Neccessary if you are manually running the script
-if [ "$1" = "NOEMAIL" ] || [ "$2" = "NOEMAIL" ]
+if [ "$1" = "NOEMAIL" ]
 then
         EMAILSEND=0
 else 
@@ -11,7 +12,7 @@ fi
 
 
 #configuration variables
-EMAIL="felkerk@gvsu.edu"
+EMAIL="schultzm@gvsu.edu"
 
 AWSURL="scholarworksbackup/archive/scholarworks.gvsu.edu"
 
@@ -21,11 +22,14 @@ LOGLOCATION="./"
 
 DATE=`date +%Y-%m-%d`
 
+SYNCLOCATION="scholarworkslifecycle"
 
 #remove all previous logfiles
 rm -r ${LOGLOCATION}process.log
 
 rm -r ${LOGLOCATION}sync_error.log
+
+rm -r ${LOGLOCATION}upload_error.log
 
 rm -r ${LOGLOCATION}brunnhilde.log
 
@@ -40,6 +44,8 @@ touch ${LOGLOCATION}sync_error.log || { echo "could not create sync error logfil
 touch ${LOGLOCATION}brunnhilde.log || { echo "could not create brunnhilde logfile" >&2; exit 1; }
 
 touch ${LOGLOCATION}bagit.log || { echo "could not create bagit logfile" >&2; exit 1; }
+
+touch ${LOGLOCATION}upload_error.log || { echo "could not create upload error logfile" >&2; exit 1; }
 
 #check if the main directory exists.  If it does not, create it.
 
@@ -141,18 +147,18 @@ then
         then
                 echo "Brunnhilde Scan complete, viruses found, check the log for more information." | mail  -s "Brunnhilde Errors" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
         fi
-	echo "Virus and format report generation complete, viruses found" | tee -a process.log
+	echo "Virus and format report generation complete, viruses found" | tee -a ${LOGLOCATION}process.log
 else 
 
 	if [ $EMAILSEND -ne 0 ]
         then
-                echo "Brunnhilde reports complete." | mail  -s "Brunnhilde Report" $EMAIL -A brunnhilde.log || { echo "cannot send email" | tee -a process.log; exit 1; }	
+                echo "Brunnhilde reports complete." | mail  -s "Brunnhilde Report" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }	
 	fi
-	echo "Virus and format report generation complete" | tee -a process.log
+	echo "Virus and format report generation complete" | tee -a ${LOGLOCATION}process.log
 fi
 
 
-echo "starting bagit" | tee -a process.log
+echo "starting bagit" | tee -a ${LOGLOCATION}process.log
 
 ERRORS=0
 
@@ -192,4 +198,37 @@ if [ $EMAILSEND -ne 0 ]
                 echo "Bagit process complete, $ERRORS errors, error text: $BAGIT_ERRORS" | mail  -s "Scholarworks Bagit Report" $EMAIL -A bagit.log || { echo "cannot send email" | tee -a process.log; exit 1; }
 		
 fi
+
+#now start putting the files on the s3 server for eventual migraton to glacier
+
+echo "Starting sync to $SYNCLOCATION" | tee -a ${LOGLOCATION}process.log
+
+aws s3 sync $COPYLOCATION s3://${SYNCLOCATION} --only-show-errors 2>&1 | tee -a ${LOGLOCATION}upload_error.log
+
+ERRORS=0
+
+while read -r LINE
+do
+        (( ERRORS++ ))
+done < ${LOGLOCATION}upload_error.log
+
+
+
+if [ $ERRORS -gt 0 ]
+then
+        if [ $EMAILSEND -ne 0 ]
+        then
+                echo "Sync of archived files back to S3 have completed, but there were $ERRORS errors." | mail  -s "Upload Errors" $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+        fi
+else
+        if [ $EMAILSEND -ne 0 ]
+        then
+                echo "Sync of archived files back to S3 have completed-no errors." | mail  -s "Archive Sync Complete" $EMAIL || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+        fi
+        echo "Sync of archive to S3 complete-no errors" | tee -a ${LOGLOCATION}process.log
+fi
+
+
+
+
 
