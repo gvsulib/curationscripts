@@ -10,6 +10,10 @@ else
         EMAILSEND=1
 fi
 
+DATE=`date +%Y-%m-%d`
+
+#load locations of AWS bucket and directories
+source config.sh
 
 #configuration variables
 EMAIL="schultzm@gvsu.edu"
@@ -67,9 +71,9 @@ fi
 echo "Starting Sync Process" | tee -a ${LOGLOCATION}process.log
 
 #running with a limited number of folders for testing-include the rest of the alphabet for production
-alpha_array=("a")
+#alpha_array=("a")
 
-#alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
+alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
 
 #start syncing files from the S3 server
 for i in "${alpha_array[@]}"
@@ -85,10 +89,10 @@ do
 	DIRECTORY="$DIRECTORY/data"
 	if [ ! -d "$DIRECTORY" ]
 	then
-		echo "syncing to main directory"
+		echo "syncing to main directory: $i"
 		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log
 	else
-		echo "Synching to data directory"
+		echo "Synching to data directory $i"
 		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i/data --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log 
 		
 	fi
@@ -198,6 +202,15 @@ if [ $EMAILSEND -ne 0 ]
                 echo "Bagit process complete, $ERRORS errors, error text: $BAGIT_ERRORS" | mail  -s "Scholarworks Bagit Report" $EMAIL -A bagit.log || { echo "cannot send email" | tee -a process.log; exit 1; }
 		
 fi
+
+#if there were bagit errors, STOP
+
+if [ $ERRORS -gt 0 ]
+	then 
+	echo "Bagit errors found, closing down process" | tee -a process.log
+	exit 1;
+fi
+
 
 #now start putting the files on the s3 server for eventual migraton to glacier
 
