@@ -18,6 +18,8 @@ source config.sh
 #configuration variables
 EMAIL="schultzm@gvsu.edu"
 
+ASANAEMAIL="x+12209374156716@mail.asana.com"
+
 AWSURL="scholarworksbackup/archive/scholarworks.gvsu.edu"
 
 COPYLOCATION="/home/ubuntu/scholarworks/"
@@ -39,6 +41,12 @@ rm -r ${LOGLOCATION}brunnhilde.log
 
 rm -r ${LOGLOCATION}bagit.log
 
+
+#log (and also email, if applicable) that we are starting the process
+if [ $EMAILSEND -ne 0 ]
+then
+        echo "Be sure to check all the log files to ensure the proces went off smoothly." | mail -a"From:library@gvsu.edu" -s "Check Scholarworks Curation Process" $ASANAEMAIL, $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+fi
 
 #create logfiles we'll use to track data about the process
 touch ${LOGLOCATION}process.log || { echo "could not create process logfile" >&2; exit 1; }
@@ -62,15 +70,11 @@ if [ ! -d "$COPYLOCATION" ]
 	
 fi
 
-#log (and also email, if applicable) that we are starting the process
-if [ $EMAILSEND -ne 0 ]
-then
-	echo "Beginning processing of Scholarworks files." | mail  -s "Scholarworks curation process beginning" $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
-fi
 
 echo "Starting Sync Process" | tee -a ${LOGLOCATION}process.log
 
 #running with a limited number of folders for testing-include the rest of the alphabet for production
+
 #alpha_array=("a")
 
 alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
@@ -112,19 +116,12 @@ done < ${LOGLOCATION}sync_error.log
 
 if [ $ERRORS -gt 0 ]
 then
-	if [ $EMAILSEND -ne 0 ]
-	then
-		echo "Sync of Scholarworks S3 files have completed, but there were $ERRORS errors." | mail  -s "Sync Errors" $EMAIL -A ${LOGLOCATION}sync_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
-	fi
+	echo "Sync complete, $ERRORS logged: check sync_error.log for logged errors." | tee -a ${LOGLOCATION}process.log
 else
-	if [ $EMAILSEND -ne 0 ]
-	then
-		echo "Sync of Scholarworks S3 files have completed-no errors." | mail  -s "Scholarworks Sync Complete" $EMAIL || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
-	fi
 	echo "Sync complete-no errors" | tee -a ${LOGLOCATION}process.log
 fi
 
-#If we get to this point with no errors, or we are ignoring errors, start virus and format reporting
+#start virus and format reporting
 
 echo "Starting virus and format report generation" | tee -a ${LOGLOCATION}process.log
 
@@ -147,18 +144,10 @@ VIRUSERRORS=$(grep -i -c "No infections found" ${LOGLOCATION}brunnhilde.log)
 
 if [ $VIRUSERRORS -lt 1 ]
 then
-	if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Brunnhilde Scan complete, viruses found, check the log for more information." | mail  -s "Brunnhilde Errors" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
-        fi
-	echo "Virus and format report generation complete, viruses found" | tee -a ${LOGLOCATION}process.log
+	echo "Virus and format report generation complete, viruses found, check brunnhilde reports for more details" | tee -a ${LOGLOCATION}process.log
 else 
 
-	if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Brunnhilde reports complete." | mail  -s "Brunnhilde Report" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }	
-	fi
-	echo "Virus and format report generation complete" | tee -a ${LOGLOCATION}process.log
+	echo "Virus and format report generation complete, no viruses logged" | tee -a ${LOGLOCATION}process.log
 fi
 
 
@@ -197,13 +186,6 @@ done
 
 echo "Bagit process complete, $ERRORS errors $BAGIT_ERRORS" | tee -a process.log
 
-if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Bagit process complete, $ERRORS errors, error text: $BAGIT_ERRORS" | mail  -s "Scholarworks Bagit Report" $EMAIL -A bagit.log || { echo "cannot send email" | tee -a process.log; exit 1; }
-		
-fi
-
-#if there were bagit errors, STOP
 
 if [ $ERRORS -gt 0 ]
 	then 
@@ -214,7 +196,7 @@ fi
 
 #now start putting the files on the s3 server for eventual migraton to glacier
 
-echo "Starting sync to $SYNCLOCATION" | tee -a ${LOGLOCATION}process.log
+echo "Starting sync of bagged files to $SYNCLOCATION" | tee -a ${LOGLOCATION}process.log
 
 aws s3 sync $COPYLOCATION s3://${SYNCLOCATION} --only-show-errors 2>&1 | tee -a ${LOGLOCATION}upload_error.log
 
@@ -229,19 +211,12 @@ done < ${LOGLOCATION}upload_error.log
 
 if [ $ERRORS -gt 0 ]
 then
-        if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Sync of archived files back to S3 have completed, but there were $ERRORS errors." | mail  -s "Upload Errors" $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
-        fi
+	echo "Sync of archive to S3 complete, $ERRORS logged, check upload_error.log for more details" | tee -a ${LOGLOCATION}process.log
 else
-        if [ $EMAILSEND -ne 0 ]
-        then
-                echo "Sync of archived files back to S3 have completed-no errors." | mail  -s "Archive Sync Complete" $EMAIL || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
-        fi
         echo "Sync of archive to S3 complete-no errors" | tee -a ${LOGLOCATION}process.log
 fi
 
-
+echo "Process complete" | tee -a ${LOGLOCATION}process.log
 
 
 
