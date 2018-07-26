@@ -18,8 +18,6 @@ source config.sh
 #configuration variables
 EMAIL="schultzm@gvsu.edu"
 
-ASANAEMAIL="x+12209374156716@mail.asana.com"
-
 AWSURL="scholarworksbackup/archive/scholarworks.gvsu.edu"
 
 COPYLOCATION="/home/ubuntu/scholarworks/"
@@ -121,6 +119,11 @@ else
 	echo "Sync complete-no errors" | tee -a ${LOGLOCATION}process.log
 fi
 
+if [ $EMAILSEND -ne 0 ]
+then
+	echo "Sync from S3 complete, $ERRORS errors found." | mail -a"From:library@gvsu.edu" -s "Check Scholarworks sync log" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}sync_error.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+fi
+
 #start virus and format reporting
 
 echo "Starting virus and format report generation" | tee -a ${LOGLOCATION}process.log
@@ -149,7 +152,10 @@ else
 
 	echo "Virus and format report generation complete, no viruses logged" | tee -a ${LOGLOCATION}process.log
 fi
-
+if [ $EMAILSEND -ne 0 ]
+then
+	echo "Brunnhilde scans complete, check report logfile." | mail -a"From:library@gvsu.edu" -s "Check Brunnhilde output" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+fi
 
 echo "starting bagit" | tee -a ${LOGLOCATION}process.log
 
@@ -192,7 +198,10 @@ if [ $ERRORS -gt 0 ]
 	echo "Bagit errors found, closing down process" | tee -a process.log
 	exit 1;
 fi
-
+if [ $EMAILSEND -ne 0 ]
+then
+	echo "Bagit process complete, $ERRORS errors." | mail -a"From:library@gvsu.edu" -s "Check Bagit Logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}bagit.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+fi
 
 #now start putting the files on the s3 server for eventual migraton to glacier
 
@@ -214,6 +223,11 @@ then
 	echo "Sync of archive to S3 complete, $ERRORS logged, check upload_error.log for more details" | tee -a ${LOGLOCATION}process.log
 else
         echo "Sync of archive to S3 complete-no errors" | tee -a ${LOGLOCATION}process.log
+fi
+
+if [ $EMAILSEND -ne 0 ]
+then
+	echo "Sync of archived files back to S3 have completed, $ERRORS errors logged." | mail -a"From:library@gvsu.edu" -s "Check Upload logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 echo "Process complete" | tee -a ${LOGLOCATION}process.log
