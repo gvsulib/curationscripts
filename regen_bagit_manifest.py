@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 #python script to update the manifest of an existing bagit bag
 
