@@ -74,9 +74,9 @@ echo "Starting Sync Process" | tee -a ${LOGLOCATION}process.log
 
 #running with a limited number of folders for testing-include the rest of the alphabet for production
 
-alpha_array=("a")
+#alpha_array=("a")
 
-#alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
+alpha_array=("a" "b" "c" "d" "e" "f" "g" "h" "i" "j" "k" "l" "m" "n" "o" "p" "q" "r" "s" "t" "u" "v" "w" "x" "y" "z")
 
 #start syncing files from the S3 server
 for i in "${alpha_array[@]}"
