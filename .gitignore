@@ -1,5 +1,7 @@
 process.log
 
+bagit_verify
+
 config.sh
 
 upload_error.log
