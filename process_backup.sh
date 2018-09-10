@@ -15,19 +15,7 @@ DATE=`date +%Y-%m-%d`
 #load locations of AWS bucket and directories
 source config.sh
 
-#configuration variables
-EMAIL="schultzm@gvsu.edu"
-
-AWSURL="scholarworksbackup/archive/scholarworks.gvsu.edu"
-
-COPYLOCATION="/home/ubuntu/scholarworks/"
-
-LOGLOCATION="./"
-
 DATE=`date +%Y-%m-%d`
-
-SYNCLOCATION="scholarworkslifecycle"
-
 #remove all previous logfiles
 rm -r ${LOGLOCATION}process.log
 
@@ -43,7 +31,7 @@ rm -r ${LOGLOCATION}bagit.log
 #log (and also email, if applicable) that we are starting the process
 if [ $EMAILSEND -ne 0 ]
 then
-        echo "Be sure to check all the log files to ensure the proces went off smoothly." | mail -a"From:library@gvsu.edu" -s "Check Scholarworks Curation Process" $ASANAEMAIL, $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+        echo "Be sure to check all the log files to ensure the process went off smoothly." | mail -a"From:library@gvsu.edu" -s "Check Scholarworks Curation Process" $ASANAEMAIL, $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 #create logfiles we'll use to track data about the process

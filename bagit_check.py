@@ -1,5 +1,15 @@
 #!/usr/local/bin/python3
 
+#we've tested this script with python 2.7 and 3.7, and it seems to work for both versions
+
+#Script variables
+
+#directory where you'd like the local files deposited
+copyPath = "bagit_verify"
+
+#name of the bucket where the files are kept
+bucketName = 'scholarworkslifecycle'
+
 #aws python library
 import boto3
 #need to parse command-line arguments
@@ -57,11 +67,11 @@ def latestVersionID (key, bucket):
         return first[0]
 print("Deleting any existing directories and creating new one to place bag")
 #check to see if local directory for files exists, and scrub it if it does
-if os.path.exists("bagit_verify"):
-        shutil.rmtree("bagit_verify")
+if os.path.exists(copyPath):
+        shutil.rmtree(copyPath)
 
 #now recreate it
-os.makedirs("bagit_verify")
+os.makedirs(copyPath)
         
 if os.path.exists("bagit_verify.log"):
         os.remove("bagit_verify.log")
@@ -71,13 +81,13 @@ print("Opening s3 bucket")
 #access the S3 bucket
 s3 = boto3.resource('s3')
 
-bucket = s3.Bucket('scholarworkslifecycle')
+bucket = s3.Bucket(bucketName)
 
 print("Populating bag(s)")
 #start constructing the local bags
 for alpha in alphaList:
  
-        path = "bagit_verify/sw-" + alpha
+        path = copyPath + "/sw-" + alpha
         print("Constructing " + path + ", Downloading manifest files") 
         keyList = ["manifest-sha256.txt",
                         "manifest-sha512.txt",
