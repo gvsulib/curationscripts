@@ -95,16 +95,16 @@ for alpha in alphaList:
                         "tagmanifest-sha512.txt",
                         "bagit.txt",
                         "bag-info.txt" ]
-        os.makedirs(path)	
+        os.makedirs(path)
         for key in keyList:
-                try:
-                
-                        bucket.download_file("sw-" + alpha + "/" + key, path + "/" + key)
-                except botocore.exceptions.ClientError as e:
-                        if e.response['Error']['Code'] == "404":
-                                print("The object: "+ key +" does not exist.")
-                        else:
-                                raise e
+                fullKey = "sw-" + alpha + "/" + key	
+                idnum = latestVersionID(fullKey, bucket)
+                if idnum == False:
+                        print("Cound not find any versions of manifest file: " + key)
+                        exit(1)
+                else:
+                        
+                        bucket.download_file(fullKey, path + "/" + key, ExtraArgs={'VersionId': idnum})
         
 
         #open the manifest file and extract all the file keys
@@ -168,7 +168,8 @@ for alpha in alphaList:
         if isError:
                 print("Problem verifying bag " + path + " Check bagit_verify.log for further details")
         else:
-                print("Bag " + path + " downloaded and successfully verified, moving on to next bag.")
+                print("Bag " + path + " downloaded and successfully verified.")
+                
                 
         
                 
