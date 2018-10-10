@@ -5,6 +5,9 @@
 #load locations of AWS bucket and directories
 source config.sh
 
+#load locations of AWS bucket and directories
+source config.sh
+
 rm -f update.log
 
 touch update.log
