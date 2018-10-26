@@ -13,9 +13,8 @@ fi
 DATE=`date +%Y-%m-%d`
 
 #load locations of AWS bucket and directories
-source config.sh
+source /home/ubuntu/curation_scripts/config.sh
 
-DATE=`date +%Y-%m-%d`
 #remove all previous logfiles
 rm -r ${LOGLOCATION}process.log
 
@@ -80,10 +79,10 @@ do
 	DIRECTORY="$DIRECTORY/data"
 	if [ ! -d "$DIRECTORY" ]
 	then
-		echo "syncing to main directory: $i"
+		echo "syncing to main directory: $i" | tee -a ${LOGLOCATION}process.log
 		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log
 	else
-		echo "Synching to data directory $i"
+		echo "Synching to data directory $i" | tee -a ${LOGLOCATION}process.log
 		aws s3 sync s3://$AWSURL ${COPYLOCATION}sw-$i/data --only-show-errors --exclude "*" --include "${i}*" 2>&1 | tee -a ${LOGLOCATION}sync_error.log 
 		
 	fi
