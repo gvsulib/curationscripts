@@ -165,7 +165,7 @@ do
 	else 	
 		echo "Attempting to update bag manifest for bag sw-$i" | tee -a process.log
 		echo "Attempting to update bag manifest for bag sw-$i" >> bagit.log
-		./regen_bagit_manifest.py ${COPYLOCATION}sw-$i |& tee -a bagit.log
+		/home/ubuntu/curation_scripts/regen_bagit_manifest.py ${COPYLOCATION}sw-$i |& tee -a bagit.log
 	fi
 	echo "Verifying directory sw-$i" | tee -a process.log
 	echo "Verifying directory sw-$i" >> bagit.log
