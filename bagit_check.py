@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/python
 
 #we've tested this script with python 2.7 and 3.7, and it seems to work for both versions
 
@@ -56,9 +56,8 @@ def latestVersionID (key, bucket):
                 return False
 
         for version in versions:
-                if version.is_latest:
-                        if version.storage_class != None:
-                                return version.id
+                if version.is_latest == True and version.storage_class == "Standard":
+                       return version.id
                 else:
                         timestamps[version.id] = version.last_modified
         #if we make it this far, the latest version is deleted, and we need to find the most recent undeleted version
@@ -103,9 +102,12 @@ for alpha in alphaList:
                         print("Cound not find any versions of manifest file: " + key)
                         exit(1)
                 else:
-                        
-                        bucket.download_file(fullKey, path + "/" + key, ExtraArgs={'VersionId': idnum})
-        
+			print("attempting to download file, versionid: " + idnum + " key: " + key) 
+			try:                       
+                        	bucket.download_file(fullKey, path + "/" + key, ExtraArgs={'VersionId': idnum})
+        		except botocore.exceptions.ClientError:
+				print("Cannot copy file, versionid: " + idnum + " key: " + key + " Error indicates attempt to copy a file deleted or moevd into glacier.  Exiting script.")
+				exit(1)
 
         #open the manifest file and extract all the file keys
         manifest = open(path + "/manifest-sha512.txt", "r")
@@ -140,9 +142,13 @@ for alpha in alphaList:
                 idnum = latestVersionID(key, bucket)
                 if idnum == False:
                         print("Cound not find any versions of file: " + key)
-                        
-                bucket.download_file(key, path + "/" + filename, ExtraArgs={'VersionId': idnum})
-        
+                else:   
+			print("trying to download file key: " + key + " versionID: " + idnum + "\n")
+			try:     
+                		bucket.download_file(key, path + "/" + filename, ExtraArgs={'VersionId': idnum})
+        		except botocore.exceptions.ClientError:
+				print("Error Downloading file key: " + key + " versionID: " + idnum + " error indicates attempt to download file tha has been deleted or migrated to glacier.  Exiting Script.\n")
+				exit(1)
 
         print("Importing bag into script")
         try:

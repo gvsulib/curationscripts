@@ -196,9 +196,9 @@ fi
 
 #now start putting the files on the s3 server for eventual migraton to glacier
 
-echo "Starting sync of bagged files to $SYNCLOCATION" | tee -a ${LOGLOCATION}process.log
+echo "Starting copy of bagged files to $SYNCLOCATION" | tee -a ${LOGLOCATION}process.log
 
-aws s3 sync $COPYLOCATION s3://${SYNCLOCATION} --only-show-errors 2>&1 | tee -a ${LOGLOCATION}upload_error.log
+aws s3 cp $COPYLOCATION s3://${SYNCLOCATION} --recursive --only-show-errors 2>&1 | tee -a ${LOGLOCATION}upload_error.log
 
 ERRORS=0
 
