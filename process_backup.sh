@@ -218,7 +218,7 @@ fi
 
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Sync of archived files back to S3 have completed, $ERRORS errors logged." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Upload logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+	echo "Copy of archived files back to S3 have completed, $ERRORS errors logged." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Upload logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 echo "Process complete" | tee -a ${LOGLOCATION}process.log
