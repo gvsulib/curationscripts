@@ -30,7 +30,7 @@ rm -r ${LOGLOCATION}bagit.log
 #log (and also email, if applicable) that we are starting the process
 if [ $EMAILSEND -ne 0 ]
 then
-        echo "Be sure to check all the log files to ensure the process went off smoothly." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Scholarworks Curation Process" $ASANAEMAIL, $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+        echo "Be sure to check all the log files to ensure the process went off smoothly." | /usr/bin/mail -s "Check Scholarworks Curation Process" $EMAIL || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 #create logfiles we'll use to track data about the process
@@ -109,7 +109,7 @@ fi
 
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Sync from S3 complete, $ERRORS errors found." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Scholarworks sync log" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}sync_error.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+	echo "Sync from S3 complete, $ERRORS errors found." | /usr/bin/mail -s "Check Scholarworks sync log" $EMAIL -A ${LOGLOCATION}sync_error.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 #start virus and format reporting
@@ -142,7 +142,7 @@ else
 fi
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Brunnhilde scans complete, check report logfile." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Brunnhilde output" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
+	echo "Brunnhilde scans complete, check report logfile." | /usr/bin/mail -s "Check Brunnhilde output" $EMAIL -A ${LOGLOCATION}brunnhilde.log || { echo "Cannot send email: check email logs" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 echo "starting bagit" | tee -a ${LOGLOCATION}process.log
@@ -185,7 +185,7 @@ echo "Bagit process complete, $ERRORS errors $BAGIT_ERRORS" | tee -a process.log
 
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Bagit process complete, $ERRORS errors." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Bagit Logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}bagit.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+	echo "Bagit process complete, $ERRORS errors." | /usr/bin/mail -s "Check Bagit Logs" $EMAIL -A ${LOGLOCATION}bagit.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 if [ $ERRORS -gt 0 ]
@@ -218,7 +218,7 @@ fi
 
 if [ $EMAILSEND -ne 0 ]
 then
-	echo "Copy of archived files back to S3 have completed, $ERRORS errors logged." | /usr/bin/mail -a"From:library@gvsu.edu" -s "Check Upload logs" $ASANAEMAIL, $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
+	echo "Copy of archived files back to S3 have completed, $ERRORS errors logged." | /usr/bin/mail -s "Check Upload logs" $EMAIL -A ${LOGLOCATION}upload_error.log || { echo "cannot send email" | tee -a ${LOGLOCATION}process.log; exit 1; }
 fi
 
 echo "Process complete" | tee -a ${LOGLOCATION}process.log
