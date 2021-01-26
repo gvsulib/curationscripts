@@ -20,10 +20,10 @@ freshclam 2>&1 | tee update.log
 
 echo "attempting to update brunnhilde" | tee -a update.log
 
-sudo python3 -m pip install brunnhilde --upgrade 2>&1 | tee -a update.log
+sudo pip3 install brunnhilde --upgrade 2>&1 | tee -a update.log
 
 echo "attempting to update bagit" | tee -a update.log
 
-sudo python3 -m pip install bagit --upgrade 2>&1 | tee -a update.log
+sudo pip3 install bagit --upgrade 2>&1 | tee -a update.log
 
 echo "Update of curation tools complete." | mail -a"From:library@gvsu.edu" -s "Curation Tool Update Report" $EMAIL -A update.log || { echo "Cannot send email: check email logs" | tee -a update.log; exit 1; }
